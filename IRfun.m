@@ -108,10 +108,11 @@ function [X,info] = IRfun(A,b,varargin)
 % SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 % Fabio Durastante
-% Università di Pisa, Dipartimento di Informatica
+% Consiglio Nazionale delle Ricerche, Istituto per le Applicazioni del
+% Calcolo "M. Picone"
 % Stefano Cipolla
 % Università di Padova, Dipartimento di Matematica
-% May 2019
+% June 2019
 
 % Set default values for options.
 defaultopt = struct('MaxIter',100 ,...
@@ -203,15 +204,19 @@ end
 if strcmp(RegType,'classic')
     Amat = A;
     n = length(b);
+    Rtol = Rtol/norm(b);                     % Use the relative NoiseLevel
 elseif strcmp(RegType,'normal')
     if isa(A,'function_handle')
         Amat = @(x) A(A(x,'notransp'),'transp');
+        btrue = b;
         b = A(b,'transp');
     else
         Amat = @(x) A'*(A*x);
+        btrue = b;
         b = A'*b;
     end
     n = length(b);
+    Rtol = Rtol/norm(btrue);                  % Use the relative NoiseLevel
 elseif strcmp(RegType,'generalized')
     if isa(A,'function_handle')
         Amat = @(x) A(x,'notransp');
@@ -221,11 +226,12 @@ elseif strcmp(RegType,'generalized')
         Atransp = @(x) A'*x;
     end
     n = length(Atransp(b));
+    Rtol = Rtol/norm(b);                     % Use the relative NoiseLevel
 else
     error('The RegType has to be a classic, normal, or generalized');
 end
 
-Rtol = Rtol/norm(b);                         % Use the relative NoiseLevel
+
 
 %% Prepare the output
 % We have two type of output, one in the case in which the x_true has been
@@ -261,9 +267,6 @@ f = @(x) 0.5*(1+tanh((x-alphar).*beta))./x;
 if strcmp(RegType,'classic') || strcmp(RegType,'normal')
     % In the case of either the classic or the normal equation approach the
     % Arnoldi based routine for the computation of f_\alpha(x) is used.
-    if strcmp(RegType,'normal')
-        Rtol = Rtol*1e-1;
-    end
     nr = norm(b);
     v(:,1)=b/nr;
     for k=1:MaxIter
@@ -298,7 +301,11 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
             % Compute norms.
             Xnrm(k)    = norm(yout);           % Norm of the Solution
             if isa(A,'function_handle')        % Is A a matrix or a handle?
-                Rnrm(k) = norm(Amat(yout) - b)/nr;% Norm of the residual
+                if strcmp(RegType,'normal')
+                    Rnrm(k) = norm(A(yout,'notransp') - btrue)/nr;
+                else
+                    Rnrm(k) = norm(Amat(yout) - b)/nr;  % Norm of the residual
+                end
             else
                 Rnrm(k) = norm(Amat*yout - b)/nr; % Norm of the residual
             end
@@ -338,7 +345,11 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
         % Compute norms.
         Xnrm(k)    = norm(yout);        % Norm of the Solution
         if isa(A,'function_handle')     % Is A a matrix or a handle?
-            Rnrm(k) = norm(Amat(yout) - b)/nr;      % Norm of the residual
+            if strcmp(RegType,'normal')
+                Rnrm(k) = norm(A(yout,'notransp') - btrue)/nr;
+            else
+                Rnrm(k) = norm(Amat(yout) - b)/nr;  % Norm of the residual
+            end
         else
             Rnrm(k) = norm(Amat*yout - b)/nr;       % Norm of the residual
         end
