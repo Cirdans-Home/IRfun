@@ -41,16 +41,22 @@ function [X,info] = IRfun(A,b,varargin)
 %                   smaller than alpha
 %                   [ {1e-6} | scalar smaller than alpha greater than 0]
 %      RegType    - the type of function that is computed inside the code,
-%                   if 'classic' the function f_\alpha(A)b is computed
-%                   assuming that A is a square matrix, or, the function
-%                   handle of a square matrix, if 'normal' the function
+%                   if 'arnoldi' the function f_\alpha(A)b is computed
+%                   assuming only that A is a square matrix, or, the 
+%                   function handle of a square matrix. If 'lanczos' is
+%                   used then the code further assumes that A is symmetric
+%                   and shor-recurrences are used to build the Krylov
+%                   subspace. If 'normal' is used then the function
 %                   matrix f_\alpha(A^TA)A^Tb is computed, if A is a
 %                   function handle then it has to admit a transpose flag
 %                   such that A(x,'transp') computes A'*x, and
-%                   A(x,'notransp') computes A*x, if 'generalized' then the
-%                   generalized matrix function f_\alpha(A)b is computed
+%                   A(x,'notransp') computes A*x. Since the resulting 
+%                   matrix is symmetric the Lanczos algorithm is used in
+%                   this case. The ---highly experimental--- case of 
+%                   'generalized' uses then the concept of generalized 
+%                   matrix function, i.e., f_\alpha(A)b is computed
 %                   for A a rectangular matrix.
-%                   [ {'classic'} | 'normal' | 'generalized']
+%                   [ {'arnoldi'} | 'lanczos' | 'normal' | 'generalized']
 %      Reorth     - The Arnoldi iteration can be computed with or without
 %                   reorthogonalization for enhancing the quality of the
 %                   Krylov subspace.
@@ -108,11 +114,12 @@ function [X,info] = IRfun(A,b,varargin)
 % SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 % Fabio Durastante
-% Consiglio Nazionale delle Ricerche, Istituto per le Applicazioni del
-% Calcolo "M. Picone"
+% Consiglio Nazionale delle Ricerche,
+% Istituto per le Applicazioni del Calcolo "M. Picone"
+% f.durastante@na.iac.cnr.it
 % Stefano Cipolla
 % Università di Padova, Dipartimento di Matematica
-% June 2019
+% October 2019
 
 % Set default values for options.
 defaultopt = struct('MaxIter',100 ,...
@@ -122,7 +129,7 @@ defaultopt = struct('MaxIter',100 ,...
     'IterBar','on', ...
     'NoStop','off', ...
     'RegParam',0,...
-    'RegType','classic',...
+    'RegType','arnoldi',...
     'RegBeta',1,...
     'Reorth','on',...
     'verbosity',true);
@@ -193,18 +200,25 @@ StopIt = MaxIter;
 
 if isempty(NoiseLevel) || strcmp(NoiseLevel,'none')
     Rtol = 0;
+    Rtol2 = 0;
 else
     Rtol = eta*NoiseLevel;
+    if NoiseLevel < 1e-1
+        Rtol2 = 1e-5;
+    else
+        Rtol2 = 1e-3;
+    end
 end
 
 %% Type of Computation
 % The type of computation and the algorithms used depends on the RegType
 % variable, and on the type of A that is given to the routine.
 
-if strcmp(RegType,'classic')
+if strcmp(RegType,'arnoldi') || strcmp(RegType,'lanczos')
     Amat = A;
     n = length(b);
     Rtol = Rtol/norm(b);                     % Use the relative NoiseLevel
+    f = @(x) 0.5*(1+tanh((x-alphar).*beta))./x;
 elseif strcmp(RegType,'normal')
     if isa(A,'function_handle')
         Amat = @(x) A(A(x,'notransp'),'transp');
@@ -217,6 +231,7 @@ elseif strcmp(RegType,'normal')
     end
     n = length(b);
     Rtol = Rtol/norm(btrue);                  % Use the relative NoiseLevel
+    f = @(x) 0.5*(1+tanh((sqrt(x)-alphar).*beta))./x;
 elseif strcmp(RegType,'generalized')
     if isa(A,'function_handle')
         Amat = @(x) A(x,'notransp');
@@ -226,9 +241,9 @@ elseif strcmp(RegType,'generalized')
         Atransp = @(x) A'*x;
     end
     n = length(Atransp(b));
-    Rtol = Rtol/norm(b);                     % Use the relative NoiseLevel
+    f = @(x) 0.5*(1+tanh((x-alphar).*beta))./x;
 else
-    error('The RegType has to be a classic, normal, or generalized');
+    error('The RegType has to be a arnoldi, lanczos, normal, or generalized');
 end
 
 
@@ -262,10 +277,10 @@ if ~noIterBar
     h_wait = waitbar(0, 'Running iterations, please wait ...');
 end
 j = 0;
-f = @(x) 0.5*(1+tanh((x-alphar).*beta))./x;
 
-if strcmp(RegType,'classic') || strcmp(RegType,'normal')
-    % In the case of either the classic or the normal equation approach the
+
+if strcmp(RegType,'arnoldi')
+    % In the case of either the arnoldi or the normal equation approach the
     % Arnoldi based routine for the computation of f_\alpha(x) is used.
     nr = norm(b);
     v(:,1)=b/nr;
@@ -276,7 +291,11 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
         if isa(A,'function_handle') % Check if A is a matrix or a handle
             z = Amat(v(:,k));
         else
-            z = Amat*v(:,k);
+            try
+                z = Amat*v(:,k);
+            catch
+                keyboard
+            end
         end
         for l=1:k                   % Modified Grahm-Schmidt
             H(l,k)=v(:,l)'*z;
@@ -295,6 +314,7 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
         else
             % Lucky Breakdown: stop due to invariant subspace
             % Observe: we are never lucky, this is an overkill.
+            warning('Lucky Breakdown Occurred!'); 
             tmp1=funm2(H(1:k,:),f);
             tmp2=nr*(tmp1(:,1));
             yout = v(:,1:k)*tmp2;
@@ -328,7 +348,7 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
             if errornorms
                 StopReg.Enrm = Enrm(k);
             end
-            if ~ NoStop
+            if ~NoStop
                 Xnrm    = Xnrm(1:k);
                 Rnrm    = Rnrm(1:k);
                 if errornorms
@@ -337,6 +357,7 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
                 X = X(:,1:j);
                 break
             end
+            break
         end
         
         tmp1=funm2(H(1:k,:),f);
@@ -388,17 +409,190 @@ if strcmp(RegType,'classic') || strcmp(RegType,'normal')
             end
         end
         %% Stopping criterium
-        if ( (Stop1 <= Rtol) || (Stop2 <= Rtol)  ) && (StopIt == MaxIter)
+        if ( (Stop1 <= Rtol) || (Stop2 <= Rtol2)  ) && (StopIt == MaxIter)
             if verbose
                 if Stop1 <= Rtol
                     disp('Residual tolerance satisfied')
-                elseif Stop2 <= Rtol
+                elseif Stop2 <= Rtol2
                     disp('Successive residuals near than the Residual tolerance');
                 end
             end
             if Stop1 <= Rtol
                 StopFlag = 'Residual tolerance satisfied';
-            elseif Stop2 <= Rtol
+            elseif Stop2 <= Rtol2
+                StopFlag = 'Successive Residual tolerance satisfied';
+            end
+            if ~AlreadySaved && ~NoStop
+                j = j+1;
+                X(:,j) = yout;
+                saved_iterations(j) = k;
+                AlreadySaved = 1;
+            end
+            StopIt = k;
+            StopReg.It = k;
+            StopReg.X = yout;
+            StopReg.Xnrm = Xnrm(k);
+            StopReg.Rnrm = Rnrm(k);
+            if errornorms
+                StopReg.Enrm = Enrm(k);
+            end
+            if ~NoStop
+                Xnrm    = Xnrm(1:k);
+                Rnrm    = Rnrm(1:k);
+                if errornorms
+                    Enrm = Enrm(1:k);
+                end
+                X = X(:,1:j);
+                break
+            end
+        end
+    end
+elseif strcmp(RegType,'lanczos') || strcmp(RegType,'normal')
+    % In the case of either the Lanczos or the normal equation approach the
+    % Lanczos based routine for the computation of f_\alpha(x) is used.
+    alphavec = zeros(MaxIter,1);
+    betavec = zeros(MaxIter,1);
+    nr = norm(b);
+    v(:,1)=b/nr;
+    if isa(A,'function_handle') % Check if A is a matrix or a handle
+        w = Amat(v(:,1));
+    else
+        w = Amat*v(:,1);
+    end
+    alphavec(1) = w'*v(:,1);
+    w = w - alphavec(1)*v(:,1);
+    for k=2:MaxIter
+        if ~noIterBar
+            waitbar(k/MaxIter, h_wait)
+        end
+        betavec(k) = norm(w,2);
+
+        if abs(betavec(k)) > 1e-13
+            v(:,k)= w/betavec(k);
+        else
+            % Lucky Breakdown: stop due to invariant subspace
+            % Observe: we are never lucky, this is an overkill.
+            Tk = spdiags([ [betavec(2:k-1);0],alphavec(1:k-1),betavec(1:k-1)],-1:1,k-1,k-1);
+            tmp1=funm2(full(Tk),f);
+            tmp2=nr*(tmp1(:,1));
+            yout = v(:,1:k-1)*tmp2;
+            % Compute norms.
+            Xnrm(k)    = norm(yout);           % Norm of the Solution
+            if isa(A,'function_handle')        % Is A a matrix or a handle?
+                if strcmp(RegType,'normal')
+                    Rnrm(k) = norm(A(yout,'notransp') - btrue)/nr;
+                else
+                    Rnrm(k) = norm(Amat(yout) - b)/nr;  % Norm of the residual
+                end
+            else
+                Rnrm(k) = norm(Amat*yout - b)/nr; % Norm of the residual
+            end
+            
+            if verbose
+                disp('Lucky breakdown!')
+            end
+            StopFlag = 'Lucky breakdown: found invariant subspace';
+            if ~AlreadySaved && ~NoStop
+                j = j+1;
+                X(:,j) = yout;
+                saved_iterations(j) = k;
+                AlreadySaved = 1;
+            end
+            StopIt = k;
+            StopReg.It = k;
+            StopReg.X = yout;
+            StopReg.Xnrm = Xnrm(k);
+            StopReg.Rnrm = Rnrm(k);
+            if errornorms
+                StopReg.Enrm = Enrm(k);
+            end
+            if ~NoStop
+                Xnrm    = Xnrm(1:k);
+                Rnrm    = Rnrm(1:k);
+                if errornorms
+                    Enrm = Enrm(1:k);
+                end
+                X = X(:,1:j);
+                break
+            end
+            break
+        end
+        
+        if Reorth % Full Reorthogonalization
+            tmp = v(:,1:k-1)'*v(:,k);
+            v(:,k) = v(:,k) - v(:,1:k-1)*tmp;
+        end
+        
+        if isa(A,'function_handle') % Check if A is a matrix or a handle
+            w = Amat(v(:,k));
+        else
+            w = Amat*v(:,k);
+        end
+        
+        alphavec(k) = w'*v(:,k);
+        w = w - alphavec(k)*v(:,k) - betavec(k)*v(:,k-1);
+
+        Tk = spdiags([ [betavec(2:k);0],alphavec(1:k),betavec(1:k)],-1:1,k,k);
+        tmp1=funm2(full(Tk),f);
+        tmp2=nr*(tmp1(:,1));
+        yout = v(:,1:k)*tmp2;
+        % Compute norms.
+        Xnrm(k)    = norm(yout);        % Norm of the Solution
+        if isa(A,'function_handle')     % Is A a matrix or a handle?
+            if strcmp(RegType,'normal')
+                Rnrm(k) = norm(A(yout,'notransp') - btrue)/nr;
+            else
+                Rnrm(k) = norm(Amat(yout) - b)/nr;  % Norm of the residual
+            end
+        else
+            Rnrm(k) = norm(Amat*yout - b)/nr;       % Norm of the residual
+        end
+        
+        if k >= 2
+            Stop1 = Rnrm(k);
+            Stop2 = abs(Rnrm(k)-Rnrm(k-1));
+        else
+            Stop1 = 1;
+            Stop2 = 1;
+        end
+        
+        if verbose
+            fprintf('Iteration %d Rnrm(%d) = %1.1e Residual Difference = %1.1e Rtol = %1.1e\n',...
+                k,k,Rnrm(k),Stop2,Rtol);
+        end
+        if errornorms
+            Enrm(k) = norm(x_true(:) - yout)/nrmtrue;
+            if Enrm(k)<BestEnrm
+                BestReg.It = k;
+                BestReg.X = yout;
+                BestReg.Xnrm = Xnrm(k);
+                BestReg.Rnrm = Rnrm(k);
+                BestEnrm = Enrm(k);
+                BestReg.Enrm = BestEnrm;
+            end
+        end
+        AlreadySaved = 0;
+        % Save the iteration if one of the required by the K vector
+        if any(k==K)
+            j = j+1;
+            X(:,j) = yout;
+            saved_iterations(j) = k;
+            if k == MaxIter
+                AlreadySaved = 1;
+            end
+        end
+        %% Stopping criterium
+        if ( (Stop1 <= Rtol) || (Stop2 <= Rtol2)  ) && (StopIt == MaxIter)
+            if verbose
+                if Stop1 <= Rtol
+                    disp('Residual tolerance satisfied')
+                elseif Stop2 <= Rtol2
+                    disp('Successive residuals near than the Residual tolerance');
+                end
+            end
+            if Stop1 <= Rtol
+                StopFlag = 'Residual tolerance satisfied';
+            elseif Stop2 <= Rtol2
                 StopFlag = 'Successive Residual tolerance satisfied';
             end
             if ~AlreadySaved && ~NoStop
@@ -497,9 +691,11 @@ elseif strcmp(RegType,'generalized')
         alpha(k)=norm(r);
         V(:,k)=r./alpha(k);
         p=Amat(V(:,k))-alpha(k).*U(:,k);
-        for i=1:k
-            tmp=U(:,i)'*p;
-            p=p-tmp.*U(:,i);
+        if Reorth                                % Reorthogonalization Step
+            for i=1:k
+                tmp=U(:,i)'*p;
+                p=p-tmp.*U(:,i);
+            end
         end
         beta(k+1)=norm(p,2);
         
@@ -585,7 +781,7 @@ elseif strcmp(RegType,'generalized')
         end
     end
 else
-    error('The RegType has to be a classic, normal, or generalized');
+    error('The RegType has to be a arnoldi, lanczos, normal, or generalized');
 end
 
 
