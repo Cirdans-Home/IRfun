@@ -158,7 +158,8 @@ for imagename = {'satellite','pattern1','pattern2'}
             options.MaxIter = 100;
             options.IterBar = 'off';
             options.Reorth = 'on';
-            options.eta = 1.01;
+            options.type = 'lanczos';
+	    options.eta = 1.01;
             fprintf(FID,' & %1.1e',options.RegParam);
             
             tic;
