@@ -2,7 +2,7 @@
 Iterative Regularization with Matrix Functions (Matlab)
 
 The code in this repository is discussed in the paper:
-- < Inserire qui >
+- S. Cipolla, F. Durastante. A Matrix–Function Technique for Iterative Regularization.
 
 So if you use it please cite the work together with:
 - Hansen, Per Christian; Jørgensen, Jakob Sauer. AIR Tools II: algebraic iterative reconstruction methods, improved implementation. Numer. Algorithms 79 (2018), no. 1, 107--137. 
