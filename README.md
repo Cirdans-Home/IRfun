@@ -1,8 +1,8 @@
 # IRfun
-Iterative Regularization with Matrix Functions (Matlab)
+Regularization of Inverse Problems by an Approximate Matrix-Function Technique (Matlab)
 
 The code in this repository is discussed in the paper:
-- S. Cipolla, F. Durastante. A Matrix–Function Technique for Iterative Regularization.
+- S. Cipolla, M. Donatelli, F. Durastante. Regularization of Inverse Problems by an Approximate Matrix-Function Technique. *Submitted*
 
 So if you use it please cite the work together with:
 - Hansen, Per Christian; Jørgensen, Jakob Sauer. AIR Tools II: algebraic iterative reconstruction methods, improved implementation. Numer. Algorithms 79 (2018), no. 1, 107--137. 
