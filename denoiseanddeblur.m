@@ -174,6 +174,73 @@ for blurindex = [1,2,3]
             xlabel(sprintf('PSNR %1.2f',psnr(infofun.StopReg.X,x_true)));
             export_fig(sprintf('satellite_%s_%1.1e.eps',levelblur{blurindex},NoiseLevel))
         end
+        
+        %% Apply Hybrid methods : Hybrid-GMRES
+        fprintf('\nHybrid GMRES method:\n');
+        
+        options  = IRhybrid_gmres('defaults');
+        options.x_true = x_true;
+        options.verbosity = 'off';
+        options.IterBar = 'off';
+        options.NoStop = 'off';
+        tic;
+        [Xhybridgmres,infohybridgmres] = IRhybrid_gmres(A,b,options);
+        timehybridgmres = toc;
+        
+        options.NoStop = 'on';
+        
+        [~,infohybridgmresbest] = IRhybrid_gmres(A,b,options);
+        
+        fprintf(FID, ' & %d (%d) & %1.1e & %1.2f (%1.2f)',...
+            infohybridgmres.StopReg.It,infohybridgmresbest.BestReg.It,timehybridgmres,...
+            psnr(reshape(infohybridgmres.StopReg.X,size(x_true)),x_true),...
+            psnr(reshape(infohybridgmresbest.BestReg.X,size(x_true)),x_true));
+        
+        %% Apply Hybrid methods : Hybrid-FGMRES
+        fprintf('\nHybrid fgmres method:\n');
+        
+        options  = IRhybrid_fgmres('defaults');
+        options.x_true = x_true;
+        options.verbosity = 'off';
+        options.IterBar = 'off';
+        options.NoStop = 'off';
+        tic;
+        [Xhybridfgmres,infohybridfgmres] = IRhybrid_fgmres(A,b,options);
+        timehybridfgmres = toc;
+        
+        options.NoStop = 'on';
+        
+        [~,infohybridfgmresbest] = IRhybrid_fgmres(A,b,options);
+        
+        fprintf(FID, ' & %d (%d) & %1.1e & %1.2f (%1.2f)',...
+            infohybridfgmres.StopReg.It,infohybridfgmresbest.BestReg.It,timehybridfgmres,...
+            psnr(reshape(infohybridfgmres.StopReg.X,size(x_true)),x_true),...
+            psnr(reshape(infohybridfgmresbest.BestReg.X,size(x_true)),x_true));
+        
+        
+        %% Apply Hybrid methods : Hybrid-lsqr
+        fprintf('\nHybrid lsqr method:\n');
+        
+        options  = IRhybrid_lsqr('defaults');
+        options.x_true = x_true;
+        options.verbosity = 'off';
+        options.IterBar = 'off';
+        options.NoStop = 'off';
+        tic;
+        [Xhybridlsqr,infohybridlsqr] = IRhybrid_lsqr(A,b,options);
+        timehybridlsqr = toc;
+        
+        options.NoStop = 'on';
+        
+        [~,infohybridlsqrbest] = IRhybrid_lsqr(A,b,options);
+        
+        fprintf(FID, ' & %d (%d) & %1.1e & %1.2f (%1.2f)',...
+            infohybridlsqr.StopReg.It,infohybridlsqrbest.BestReg.It,timehybridlsqr,...
+            psnr(reshape(infohybridlsqr.StopReg.X,size(x_true)),x_true),...
+            psnr(reshape(infohybridlsqrbest.BestReg.X,size(x_true)),x_true));
+        
+        
+        
         fprintf(FID,'\\\\\n');
     end
     fprintf(FID,'\n\n\n\n');
