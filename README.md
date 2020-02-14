@@ -9,3 +9,7 @@ So if you use it please cite the work together with:
 - Gazzola, Silvia, Per Christian, Hansen, James G. Nagy. IR Tools: a MATLAB package of iterative regularization methods and large-scale test problems. Numerical Algorithms (2018), 1-39.
 
 On which this code is largely based, and that are needed to run the code an the test examples.
+
+To have information on the software write to
+- Fabio Durastante - f.durastante@na.iac.cnr.it
+- Stefano Cipolla - cipolla@math.unipd.it
