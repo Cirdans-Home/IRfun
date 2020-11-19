@@ -10,4 +10,4 @@ If you use this code please cite the above work together with the follwoing work
 
 To have information on the software write to
 - Fabio Durastante - f.durastante@na.iac.cnr.it
-- Stefano Cipolla - cipolla@math.unipd.it
+- Stefano Cipolla - scipolla@ed.ac.uk
