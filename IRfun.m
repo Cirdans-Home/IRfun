@@ -454,7 +454,7 @@ elseif strcmp(RegType,'lanczos') || strcmp(RegType,'normal')
     betavec = zeros(MaxIter,1);
     nr = norm(b);
     v(:,1)=b/nr;
-    if isa(A,'function_handle') % Check if A is a matrix or a handle
+    if isa(Amat,'function_handle') % Check if A is a matrix or a handle
         w = Amat(v(:,1));
     else
         w = Amat*v(:,1);
@@ -523,7 +523,7 @@ elseif strcmp(RegType,'lanczos') || strcmp(RegType,'normal')
             v(:,k) = v(:,k) - v(:,1:k-1)*tmp;
         end
         
-        if isa(A,'function_handle') % Check if A is a matrix or a handle
+        if isa(Amat,'function_handle') % Check if A is a matrix or a handle
             w = Amat(v(:,k));
         else
             w = Amat*v(:,k);
@@ -544,6 +544,8 @@ elseif strcmp(RegType,'lanczos') || strcmp(RegType,'normal')
             else
                 Rnrm(k) = norm(Amat(yout) - b)/nr;  % Norm of the residual
             end
+        elseif isa(Amat,'function_handle')
+            Rnrm(k) = norm(Amat(yout) - b)/nr;     
         else
             Rnrm(k) = norm(Amat*yout - b)/nr;       % Norm of the residual
         end
