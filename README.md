@@ -2,7 +2,7 @@
 Regularization of Inverse Problems by an Approximate Matrix-Function Technique (Matlab)
 
 The code in this repository is discussed in the paper:
-- S. Cipolla, M. Donatelli, F. Durastante. Regularization of Inverse Problems by an Approximate Matrix-Function Technique. *Submitted*
+- S. Cipolla, M. Donatelli, F. Durastante. Regularization of Inverse Problems by an Approximate Matrix-Function Technique. Numer. Algo. DOI: https://doi.org/10.1007/s11075-021-01076-y 
 
 If you use this code please cite the above work together with the follwoing works which represent the base of our code and that are needed to run the test examples :
 - Hansen, Per Christian; Jørgensen, Jakob Sauer. AIR Tools II: algebraic iterative reconstruction methods, improved implementation. Numer. Algorithms 79 (2018), no. 1, 107--137. 
